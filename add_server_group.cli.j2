@@ -1,0 +1,4 @@
+/server-group={{ item }}:add(profile=full,socket-binding-group=full-sockets)
+/server-group={{ item }}/jvm=default:add
+/server-group={{ item }}/jvm=default:write-attribute(name=heap-size,value="1024m")
+/server-group={{ item }}/jvm=default:write-attribute(name=max-heap-size,value="1024m")

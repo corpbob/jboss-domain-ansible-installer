@@ -1,0 +1,176 @@
+---
+- hosts: all
+  vars:
+    user_dir: '/home/{{ ansible_user }}'
+    jboss_home: '{{ user_dir }}/jboss-eap-7.1'
+    domains_dir: '{{ user_dir }}/mydomains'
+    jboss_binary: jboss-eap-7.1.0.zip
+    master_ip_address: '{{ hostvars["mark1"]["public_ip"] }}'
+    server_groups: prod-group
+  tasks:
+    - debug:
+        var: master_ip_address
+    - name: Upload jboss binary to server
+      copy:
+        src: '{{ jboss_binary }}'
+        dest: '{{ user_dir }}'
+    - name: Upload wildfly-protocol jar file
+      copy:
+        src: wildfly-protocol-3.0.10.Final-redhat-1.jar
+        dest: '{{ user_dir }}'
+    - name: Unzip file
+      command: unzip -o '{{ jboss_binary }}'
+      args:
+        chdir: '{{ user_dir }}'
+    - name: Replace the wildfy-protocol jar
+      command: cp '{{ user_dir }}/wildfly-protocol-3.0.10.Final-redhat-1.jar' '{{ jboss_home }}/modules/system/layers/base/org/jboss/as/protocol/main/wildfly-protocol-3.0.10.Final-redhat-1.jar'
+
+    - name: create admin user
+      command: ./add-user.sh -u admin3 -r ManagementRealm -ds -p asdfgh -e
+      register: jboss_user
+      args:
+        chdir: '{{ jboss_home }}/bin'
+      when: ansible_host == 'mark1'
+    - debug: 
+        var: jboss_user.stdout_lines[-1].partition("secret")[2]
+      
+    - debug:
+        var: ansible_host
+
+    - name: remove the existing directory
+      command: rm -fr '{{ domains_dir }}'
+
+
+    - name: create external domains directory
+      command: mkdir -p '{{ domains_dir }}'
+
+    - name: copy domains directory to mydomains directory
+      command: cp -r '{{ jboss_home }}/domain' '{{ domains_dir }}/{{ ansible_host }}'
+
+    - name: Set the secret in the file host-slave.xml
+      lineinfile:
+        path: '{{ domains_dir }}/{{ ansible_host }}/configuration/host-slave.xml'
+        regexp: '(.*)<secret.*'
+        line: '\1<secret {{hostvars["mark1"]["jboss_user"].stdout_lines[-1].partition("secret")[2] }}'
+        backrefs: yes
+
+    - name: Set the username in the file host-slave.xml
+      lineinfile:
+        path: '{{ domains_dir }}/{{ ansible_host }}/configuration/host-slave.xml'
+        regexp: '(.*)<remote(.*)'
+        line: '\1<remote username="admin3"\2'
+        backrefs: yes
+        state: present
+
+    - name: Set the hostname of the host-slave.xml
+      lineinfile:
+        path: '{{ domains_dir }}/{{ ansible_host }}/configuration/host-slave.xml'
+        regexp: '<host xmlns="urn:jboss:domain:5.0">'
+        line: '<host xmlns="urn:jboss:domain:5.0" name="{{ ansible_host }}">'
+
+    - name: Set the hostname of the host-master.xml
+      lineinfile:
+        path: '{{ domains_dir }}/{{ ansible_host }}/configuration/host-master.xml'
+        regexp: '<host xmlns="urn:jboss:domain:5.0" name="master">'
+        line: '<host xmlns="urn:jboss:domain:5.0" name="{{ ansible_host }}">'
+
+
+    - name: upload script to run master
+      template: 
+        src: start_master.sh.j2 
+        dest: '{{ jboss_home }}/bin/start_master.sh'
+        mode: '0700'
+      when: ansible_host == 'mark1'
+
+    - name: upload script to run slave
+      template: 
+        src: start_slave.sh.j2 
+        dest: '{{ jboss_home }}/bin/start_slave.sh'
+        mode: '0700'
+      when: ansible_host != 'mark1'
+
+
+    - name: start the master
+      command: bash ./start_master.sh
+      args:
+        chdir: '{{ jboss_home }}/bin'
+      when: ansible_host == 'mark1'
+
+    - name: start the slave
+      command: bash ./start_slave.sh
+      args:
+        chdir: '{{ jboss_home }}/bin'
+      when: ansible_host != 'mark1'
+
+    - name: Check if we have started
+      command: 'grep "(Host Controller) started in" {{ domains_dir }}/{{ ansible_host }}/log/host-controller.log'
+      register: line
+      until: line.rc == 0
+      retries: 20
+      delay: 10
+
+
+- hosts: master
+  vars:
+    user_dir: '/home/{{ ansible_user }}'
+    jboss_home: '{{ user_dir }}/jboss-eap-7.1'
+    domains_dir: '{{ user_dir }}/mydomains'
+    jboss_binary: jboss-eap-7.1.0.zip
+    master_ip_address: '{{ hostvars["mark1"]["public_ip"] }}'
+    server_groups: prod-group,uat-group,sit-group
+  tasks:
+    - name: load jboss_variables.yaml
+      include_vars:
+        file: jboss_variables.yaml
+
+    - name: upload script to add server group
+      template:
+        src: add_server_group.cli.j2
+        dest: '{{ jboss_home }}/bin/add_server_group_{{ item }}.cli'
+      with_items: '{{ server_groups.split(",") }}'
+
+    - name: create server group
+      command: './jboss-cli.sh -c controller={{ master_ip_address }}  --timeout=60000 --file=add_server_group_{{ item }}.cli'
+
+      args:
+        chdir: '{{ jboss_home }}/bin'
+      with_items: '{{ server_groups.split(",") }}'
+
+    - name: Upload script to remove default servers
+      template:
+        src: stop_default_servers_and_remove.cli.j2
+        dest: '{{ jboss_home }}/bin/stop_default_servers_and_remove_{{ item }}.cli'
+      with_items: '{{ hostvars.keys() }}'
+
+    - name: Upload script to remove default servers groups
+      template:
+        src: remove_default_server_groups.cli.j2
+        dest: '{{ jboss_home }}/bin/remove_default_server_groups.cli'
+
+    - name: Upload script to create new server group
+      template:
+        src: create_new_server_groups.cli.j2
+        dest: '{{ jboss_home }}/bin/create_new_server_groups-{{ item.0["name"] }}-{{ item.1["name"] }}.cli'
+      with_subelements: 
+        - '{{ host_details }}'
+        - server_list
+
+
+    - name: Execute Script to remove default servers
+      command: './jboss-cli.sh -c controller={{ master_ip_address }} --timeout=60000 --file=stop_default_servers_and_remove_{{ item }}.cli'
+      args:
+        chdir: '{{ jboss_home }}/bin'
+      with_items: '{{ groups["slaves"] }}'
+
+    - name: Remove default server groups
+      command: './jboss-cli.sh -c controller={{ master_ip_address }} --timeout=60000 --file=remove_default_server_groups.cli'
+      args:
+        chdir: '{{ jboss_home }}/bin'
+
+    - name: Create new server groups
+      command: './jboss-cli.sh -c controller={{ master_ip_address }} --timeout=60000 --file=create_new_server_groups-{{ item.0["name"] }}-{{ item.1["name"] }}.cli'
+      args:
+        chdir: '{{ jboss_home }}/bin'
+      with_subelements:
+        - '{{ host_details }}'
+        - server_list

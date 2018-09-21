@@ -1,0 +1,2 @@
+/host={{ item.0["name"] }}/server-config={{ item.1["name"] }}:add(group=sit-group, socket-binding-port-offset={{ item.1["port_offset"] }})
+/host={{ item.0["name"] }}/server-config={{ item.1["name"] }}:start

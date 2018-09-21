@@ -1,0 +1,16 @@
+host_details:
+  mark2:
+    name: "mark2"
+    server_list:
+      - name: "server11"
+        port_offset: 0
+      - name: "server12"
+        port_offset: 150 
+       
+  mark3:
+    name: "mark3"
+    server_list:
+      - name: "server21"
+        port_offset: 0
+      - name: "server22"
+        port_offset: 150
