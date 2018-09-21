@@ -1,12 +1,12 @@
 This requires 3 vms.
 
-1 vm is for master. here we run the host-master: Ip address 10.252.236.150
-2 vms for slaves: ip addresses 
+- 1 vm is for master. here we run the host-master: Ip address 10.252.236.150
+- 2 vms for slaves: ip addresses 
 
-10.252.236.151
-10.252.236.152
+  - 10.252.236.151
+  - 10.252.236.152
 
-Steps:
+#Steps:
 
 0. Install ansible and git in master vm:
 
