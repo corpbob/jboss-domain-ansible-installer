@@ -95,3 +95,5 @@ http://10.252.236.151:8230/helloworld-html5/
 http://10.252.236.152:8230/helloworld-html5/
 
 All should look like:
+
+![images/helloworld_html5_image.png](images/helloworld_html5_image.png)
