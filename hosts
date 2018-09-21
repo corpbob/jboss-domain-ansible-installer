@@ -1,14 +1,9 @@
 #[local]
 #localhost  ansible_connection=local ansible_user=bcorpus
 
-[all]
-mark1 ansible_ssh_private_key_file=/Users/bcorpus/.ssh/id_rsa ansible_user=jboss public_ip=10.252.236.150
-mark2 ansible_ssh_private_key_file=/Users/bcorpus/.ssh/id_rsa ansible_user=jboss public_ip=10.252.236.151 
-mark3 ansible_ssh_private_key_file=/Users/bcorpus/.ssh/id_rsa ansible_user=jboss public_ip=10.252.236.152
-
 [master]
-mark1 ansible_ssh_private_key_file=/Users/bcorpus/.ssh/id_rsa ansible_user=jboss public_ip=10.252.236.150
+master ansible_host=10.252.236.150 ansible_ssh_private_key_file=/home/jboss/.ssh/id_rsa ansible_user=jboss public_ip=10.252.236.150
 
 [slaves]
-mark2 ansible_ssh_private_key_file=/Users/bcorpus/.ssh/id_rsa ansible_user=jboss public_ip=10.252.236.151
-mark3 ansible_ssh_private_key_file=/Users/bcorpus/.ssh/id_rsa ansible_user=jboss public_ip=10.252.236.152
+sit ansible_host=10.252.236.151 ansible_ssh_private_key_file=/home/jboss/.ssh/id_rsa ansible_user=jboss public_ip=10.252.236.151
+sit2 ansible_host=10.252.236.152 ansible_ssh_private_key_file=/home/jboss/.ssh/id_rsa ansible_user=jboss public_ip=10.252.236.152

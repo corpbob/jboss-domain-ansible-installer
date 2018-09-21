@@ -1,3 +1,3 @@
 cd {{ jboss_home }}/bin 
-nohup ./domain.sh --host-config=host-slave.xml -Djboss.domain.base.dir={{ domains_dir }}/{{ ansible_host }} -Djboss.domain.master.address={{ master_ip_address }} 2>&1 > /dev/null &
+nohup ./domain.sh --host-config=host-slave.xml -Djboss.domain.base.dir={{ domains_dir }}/{{ inventory_hostname }} -Djboss.domain.master.address={{ master_ip_address }} -b {{ public_ip }} 2>&1 > /dev/null &
 sleep 1

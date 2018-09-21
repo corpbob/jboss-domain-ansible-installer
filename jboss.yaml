@@ -1,11 +1,11 @@
 ---
-- hosts: all
+- hosts: master,slaves
   vars:
     user_dir: '/home/{{ ansible_user }}'
     jboss_home: '{{ user_dir }}/jboss-eap-7.1'
     domains_dir: '{{ user_dir }}/mydomains'
     jboss_binary: jboss-eap-7.1.0.zip
-    master_ip_address: '{{ hostvars["mark1"]["public_ip"] }}'
+    master_ip_address: '{{ hostvars["master"]["public_ip"] }}'
     server_groups: prod-group
   tasks:
     - debug:
@@ -30,12 +30,12 @@
       register: jboss_user
       args:
         chdir: '{{ jboss_home }}/bin'
-      when: ansible_host == 'mark1'
+      when: inventory_hostname == 'master'
     - debug: 
         var: jboss_user.stdout_lines[-1].partition("secret")[2]
       
     - debug:
-        var: ansible_host
+        var: inventory_hostname
 
     - name: remove the existing directory
       command: rm -fr '{{ domains_dir }}'
@@ -45,18 +45,18 @@
       command: mkdir -p '{{ domains_dir }}'
 
     - name: copy domains directory to mydomains directory
-      command: cp -r '{{ jboss_home }}/domain' '{{ domains_dir }}/{{ ansible_host }}'
+      command: cp -r '{{ jboss_home }}/domain' '{{ domains_dir }}/{{ inventory_hostname }}'
 
     - name: Set the secret in the file host-slave.xml
       lineinfile:
-        path: '{{ domains_dir }}/{{ ansible_host }}/configuration/host-slave.xml'
+        path: '{{ domains_dir }}/{{ inventory_hostname }}/configuration/host-slave.xml'
         regexp: '(.*)<secret.*'
-        line: '\1<secret {{hostvars["mark1"]["jboss_user"].stdout_lines[-1].partition("secret")[2] }}'
+        line: '\1<secret {{hostvars["master"]["jboss_user"].stdout_lines[-1].partition("secret")[2] }}'
         backrefs: yes
 
     - name: Set the username in the file host-slave.xml
       lineinfile:
-        path: '{{ domains_dir }}/{{ ansible_host }}/configuration/host-slave.xml'
+        path: '{{ domains_dir }}/{{ inventory_hostname }}/configuration/host-slave.xml'
         regexp: '(.*)<remote(.*)'
         line: '\1<remote username="admin3"\2'
         backrefs: yes
@@ -64,15 +64,15 @@
 
     - name: Set the hostname of the host-slave.xml
       lineinfile:
-        path: '{{ domains_dir }}/{{ ansible_host }}/configuration/host-slave.xml'
+        path: '{{ domains_dir }}/{{ inventory_hostname }}/configuration/host-slave.xml'
         regexp: '<host xmlns="urn:jboss:domain:5.0">'
-        line: '<host xmlns="urn:jboss:domain:5.0" name="{{ ansible_host }}">'
+        line: '<host xmlns="urn:jboss:domain:5.0" name="{{ inventory_hostname }}">'
 
     - name: Set the hostname of the host-master.xml
       lineinfile:
-        path: '{{ domains_dir }}/{{ ansible_host }}/configuration/host-master.xml'
+        path: '{{ domains_dir }}/{{ inventory_hostname }}/configuration/host-master.xml'
         regexp: '<host xmlns="urn:jboss:domain:5.0" name="master">'
-        line: '<host xmlns="urn:jboss:domain:5.0" name="{{ ansible_host }}">'
+        line: '<host xmlns="urn:jboss:domain:5.0" name="{{ inventory_hostname }}">'
 
 
     - name: upload script to run master
@@ -80,30 +80,30 @@
         src: start_master.sh.j2 
         dest: '{{ jboss_home }}/bin/start_master.sh'
         mode: '0700'
-      when: ansible_host == 'mark1'
+      when: inventory_hostname == 'master'
 
     - name: upload script to run slave
       template: 
         src: start_slave.sh.j2 
         dest: '{{ jboss_home }}/bin/start_slave.sh'
         mode: '0700'
-      when: ansible_host != 'mark1'
+      when: inventory_hostname != 'master'
 
 
     - name: start the master
       command: bash ./start_master.sh
       args:
         chdir: '{{ jboss_home }}/bin'
-      when: ansible_host == 'mark1'
+      when: inventory_hostname == 'master'
 
     - name: start the slave
       command: bash ./start_slave.sh
       args:
         chdir: '{{ jboss_home }}/bin'
-      when: ansible_host != 'mark1'
+      when: inventory_hostname != 'master'
 
     - name: Check if we have started
-      command: 'grep "(Host Controller) started in" {{ domains_dir }}/{{ ansible_host }}/log/host-controller.log'
+      command: 'grep "(Host Controller) started in" {{ domains_dir }}/{{ inventory_hostname }}/log/host-controller.log'
       register: line
       until: line.rc == 0
       retries: 20
@@ -116,7 +116,7 @@
     jboss_home: '{{ user_dir }}/jboss-eap-7.1'
     domains_dir: '{{ user_dir }}/mydomains'
     jboss_binary: jboss-eap-7.1.0.zip
-    master_ip_address: '{{ hostvars["mark1"]["public_ip"] }}'
+    master_ip_address: '{{ hostvars["master"]["public_ip"] }}'
     server_groups: prod-group,uat-group,sit-group
   tasks:
     - name: load jboss_variables.yaml
