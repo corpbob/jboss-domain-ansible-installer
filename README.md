@@ -89,10 +89,10 @@ deploy /home/jboss/helloworld-html5.war --server-groups=sit-group
 
 13. Open your browser and navigate to 
 
-http://10.252.236.151:8080/helloworld-html5/
-http://10.252.236.152:8080/helloworld-html5/
-http://10.252.236.151:8230/helloworld-html5/
-http://10.252.236.152:8230/helloworld-html5/
+- http://10.252.236.151:8080/helloworld-html5/
+- http://10.252.236.152:8080/helloworld-html5/
+- http://10.252.236.151:8230/helloworld-html5/
+- http://10.252.236.152:8230/helloworld-html5/
 
 All should look like:
 
