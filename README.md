@@ -6,7 +6,7 @@ This requires 3 vms.
   - 10.252.236.151
   - 10.252.236.152
 
-#Steps:
+# Steps:
 
 0. Install ansible and git in master vm:
 
